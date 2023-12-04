@@ -20,33 +20,38 @@ async fn main() -> anyhow::Result<()> {
         .connect_i2c(interface)
         .into();
 
+    let not_found_icon = tinybmp::Bmp::from_slice(include_bytes!("assets/not-found.bmp")).unwrap();
+    let connecting_icon =
+        tinybmp::Bmp::from_slice(include_bytes!("assets/connecting.bmp")).unwrap();
+    let battery_icon_25 =
+        tinybmp::Bmp::from_slice(include_bytes!("assets/battery-25.bmp")).unwrap();
+    let battery_icon_50 =
+        tinybmp::Bmp::from_slice(include_bytes!("assets/battery-50.bmp")).unwrap();
+    let battery_icon_75 =
+        tinybmp::Bmp::from_slice(include_bytes!("assets/battery-75.bmp")).unwrap();
+    let battery_icon_100 =
+        tinybmp::Bmp::from_slice(include_bytes!("assets/battery-100.bmp")).unwrap();
+
     display.init().unwrap();
     display.flush().unwrap();
+    display.clear();
 
-    let message_style = MonoTextStyle::new(&PROFONT_7_POINT, BinaryColor::On);
+    Image::new(&not_found_icon, Point::new(47, 16)).draw(&mut display)?;
+
+    display.flush().unwrap();
+
     let temperature_style = MonoTextStyle::new(&PROFONT_24_POINT, BinaryColor::On);
-
-    let (client, mut receiver) = meater::Client::new();
-
-    let mut message: Option<&'static str> = None;
     let mut temperature: Option<(f32, f32)> = None;
     let mut battery: Option<u16> = None;
 
-    let battery_icons: [tinybmp::Bmp<'static, BinaryColor>; 4] = [
-        tinybmp::Bmp::from_slice(include_bytes!("assets/battery-25.bmp")).unwrap(),
-        tinybmp::Bmp::from_slice(include_bytes!("assets/battery-50.bmp")).unwrap(),
-        tinybmp::Bmp::from_slice(include_bytes!("assets/battery-75.bmp")).unwrap(),
-        tinybmp::Bmp::from_slice(include_bytes!("assets/battery-100.bmp")).unwrap(),
-    ];
+    let (client, mut receiver) = meater::Client::new();
 
     let event_handling = async move {
-        while let Some(event) = receiver.recv().await {
-            display.clear();
+        let mut state = meater::State::Disconnected;
 
+        while let Some(event) = receiver.recv().await {
             match event {
-                meater::Event::Message(new_message) => {
-                    message.replace(new_message);
-                }
+                meater::Event::State(new_state) => state = new_state,
                 meater::Event::Temperature { tip, ambient } => {
                     temperature.replace((tip, ambient));
                 }
@@ -55,23 +60,31 @@ async fn main() -> anyhow::Result<()> {
                 }
             }
 
-            if let Some(message) = message.take() {
-                Text::new(message, Point::new(10, 30), message_style).draw(&mut display)?;
-            } else {
-                if let Some((tip, _ambient)) = temperature {
-                    Text::new(&format!("{tip:.0}°C"), Point::new(0, 38), temperature_style)
-                        .draw(&mut display)?;
+            display.clear();
+
+            match state {
+                meater::State::Disconnected => {
+                    Image::new(&not_found_icon, Point::new(47, 16)).draw(&mut display)?;
                 }
+                meater::State::Connecting => {
+                    Image::new(&connecting_icon, Point::new(47, 16)).draw(&mut display)?;
+                }
+                meater::State::Connected => {
+                    if let Some((tip, _ambient)) = temperature {
+                        Text::new(&format!("{tip:.0}°C"), Point::new(0, 38), temperature_style)
+                            .draw(&mut display)?;
+                    }
 
-                if let Some(percent) = battery {
-                    let icon = match percent as u16 {
-                        ..=25 => battery_icons[0],
-                        26..=50 => battery_icons[1],
-                        51..=75 => battery_icons[2],
-                        _ => battery_icons[3],
-                    };
+                    if let Some(percent) = battery {
+                        let icon = match percent as u16 {
+                            ..=25 => battery_icon_25,
+                            26..=50 => battery_icon_50,
+                            51..=75 => battery_icon_75,
+                            _ => battery_icon_100,
+                        };
 
-                    Image::new(&icon, Point::new(112, 0)).draw(&mut display)?;
+                        Image::new(&icon, Point::new(112, 0)).draw(&mut display)?;
+                    }
                 }
             }
 
