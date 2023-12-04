@@ -5,7 +5,7 @@ use embedded_graphics::mono_font::MonoTextStyle;
 use embedded_graphics::pixelcolor::BinaryColor;
 use embedded_graphics::text::Text;
 use embedded_graphics::Drawable;
-use profont::{PROFONT_24_POINT, PROFONT_7_POINT};
+use profont::PROFONT_24_POINT;
 
 mod meater;
 
@@ -76,7 +76,7 @@ async fn main() -> anyhow::Result<()> {
                     }
 
                     if let Some(percent) = battery {
-                        let icon = match percent as u16 {
+                        let icon = match percent {
                             ..=25 => battery_icon_25,
                             26..=50 => battery_icon_50,
                             51..=75 => battery_icon_75,

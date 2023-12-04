@@ -60,7 +60,7 @@ async fn get_meater(
     central: &platform::Adapter,
     id: &platform::PeripheralId,
 ) -> anyhow::Result<Option<platform::Peripheral>> {
-    let peripheral = central.peripheral(&id).await?;
+    let peripheral = central.peripheral(id).await?;
 
     Ok(peripheral
         .properties()
@@ -142,7 +142,7 @@ async fn monitor(
     while let Some(event) = events.next().await {
         match event {
             CentralEvent::DeviceDiscovered(id) => {
-                if let Some(meater) = get_meater(&central, &id).await? {
+                if let Some(meater) = get_meater(central, &id).await? {
                     tracing::info!(id = ?id, "MEATER discovered");
                     sender.send(Event::State(State::Connecting)).await?;
                     connect(&meater).await?;
@@ -150,7 +150,7 @@ async fn monitor(
                 }
             }
             CentralEvent::DeviceConnected(id) => {
-                if let Some(meater) = get_meater(&central, &id).await? {
+                if let Some(meater) = get_meater(central, &id).await? {
                     // if get_meater(&central, &id).await?.is_some() {
                     tracing::info!(id = ?id, "MEATER connected");
                     sender.send(Event::State(State::Connected)).await?;
@@ -158,7 +158,7 @@ async fn monitor(
                 }
             }
             CentralEvent::DeviceDisconnected(id) => {
-                if get_meater(&central, &id).await?.is_some() {
+                if get_meater(central, &id).await?.is_some() {
                     tracing::info!(id = ?id, "MEATER disconnected");
                     sender.send(Event::State(State::Disconnected)).await?;
 
@@ -168,7 +168,7 @@ async fn monitor(
                 }
             }
             CentralEvent::DeviceUpdated(id) => {
-                if let Some(meater) = get_meater(&central, &id).await? {
+                if let Some(meater) = get_meater(central, &id).await? {
                     tracing::info!(id = ?id, "MEATER updated");
                     sender.send(Event::State(State::Connecting)).await?;
                     connect(&meater).await?;
