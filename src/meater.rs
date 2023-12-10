@@ -73,8 +73,21 @@ async fn get_meater(
 
 /// Connect to the meater and subscribe to all notification characteristics.
 async fn connect(meater: &platform::Peripheral) -> anyhow::Result<()> {
-    meater.connect().await?;
+    loop {
+        tracing::info!("connecting MEATER");
+
+        match meater.connect().await {
+            Ok(_) => break,
+            Err(err) => {
+                tracing::error!("unable to connect: {err}, retrying ...");
+            }
+        }
+    }
+
+    tracing::debug!("discovering services");
     meater.discover_services().await?;
+
+    tracing::debug!("subscribing to characteristics");
 
     for characteristic in meater.characteristics() {
         if characteristic.properties.contains(CharPropFlags::NOTIFY) {
@@ -146,15 +159,13 @@ async fn monitor(
                     tracing::info!(id = ?id, "MEATER discovered");
                     sender.send(Event::State(State::Connecting)).await?;
                     connect(&meater).await?;
-                    tokio::spawn(listen(meater, sender.clone()));
+                    current_listener.replace(tokio::spawn(listen(meater, sender.clone())));
                 }
             }
             CentralEvent::DeviceConnected(id) => {
-                if let Some(meater) = get_meater(central, &id).await? {
-                    // if get_meater(&central, &id).await?.is_some() {
+                if get_meater(central, &id).await?.is_some() {
                     tracing::info!(id = ?id, "MEATER connected");
                     sender.send(Event::State(State::Connected)).await?;
-                    current_listener.replace(tokio::spawn(listen(meater, sender.clone())));
                 }
             }
             CentralEvent::DeviceDisconnected(id) => {
@@ -164,6 +175,7 @@ async fn monitor(
 
                     if let Some(listener) = current_listener.take() {
                         listener.abort();
+                        drop(listener);
                     }
                 }
             }
@@ -172,6 +184,7 @@ async fn monitor(
                     tracing::info!(id = ?id, "MEATER updated");
                     sender.send(Event::State(State::Connecting)).await?;
                     connect(&meater).await?;
+                    current_listener.replace(tokio::spawn(listen(meater, sender.clone())));
                 }
             }
             _ => {}
