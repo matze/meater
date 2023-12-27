@@ -1,4 +1,6 @@
 use anyhow::Context;
+#[cfg(feature = "host")]
+use embedded_graphics::draw_target::DrawTarget;
 use embedded_graphics::geometry::Point;
 use embedded_graphics::image::Image;
 use embedded_graphics::mono_font::MonoTextStyle;
@@ -13,12 +15,38 @@ mod meater;
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
 
-    let interface = rppal::i2c::I2c::new().context("unable to create I2c")?;
+    #[cfg(feature = "device")]
+    let mut display = {
+        let interface = rppal::i2c::I2c::new().context("unable to create I2c")?;
 
-    let mut display: sh1106::mode::GraphicsMode<_> = sh1106::Builder::new()
-        .with_size(sh1106::displaysize::DisplaySize::Display128x64)
-        .connect_i2c(interface)
-        .into();
+        let mut display: sh1106::mode::GraphicsMode<_> = sh1106::Builder::new()
+            .with_size(sh1106::displaysize::DisplaySize::Display128x64)
+            .connect_i2c(interface)
+            .into();
+
+        display.init().unwrap();
+        display.flush().unwrap();
+        display.clear();
+        display
+    };
+
+    #[cfg(feature = "host")]
+    let (mut display, mut window) = {
+        use embedded_graphics::geometry::Size;
+        use embedded_graphics_simulator::{
+            BinaryColorTheme, OutputSettingsBuilder, SimulatorDisplay, Window,
+        };
+
+        let settings = OutputSettingsBuilder::new()
+            .theme(BinaryColorTheme::OledWhite)
+            .build();
+
+        let window = Window::new("MEATER emulated display", &settings);
+        (
+            SimulatorDisplay::<BinaryColor>::new(Size::new(128, 64)),
+            window,
+        )
+    };
 
     let not_found_icon = tinybmp::Bmp::from_slice(include_bytes!("assets/not-found.bmp")).unwrap();
     let connecting_icon =
@@ -32,13 +60,13 @@ async fn main() -> anyhow::Result<()> {
     let battery_icon_100 =
         tinybmp::Bmp::from_slice(include_bytes!("assets/battery-100.bmp")).unwrap();
 
-    display.init().unwrap();
-    display.flush().unwrap();
-    display.clear();
-
     Image::new(&not_found_icon, Point::new(47, 16)).draw(&mut display)?;
 
+    #[cfg(feature = "device")]
     display.flush().unwrap();
+
+    #[cfg(feature = "host")]
+    window.update(&display);
 
     let temperature_style = MonoTextStyle::new(&PROFONT_24_POINT, BinaryColor::On);
     let mut temperature: Option<(f32, f32)> = None;
@@ -60,7 +88,13 @@ async fn main() -> anyhow::Result<()> {
                 }
             }
 
+            #[cfg(feature = "device")]
             display.clear();
+
+            #[cfg(feature = "host")]
+            display
+                .clear(BinaryColor::Off)
+                .context("unable to clear display")?;
 
             match state {
                 meater::State::Disconnected => {
@@ -88,16 +122,23 @@ async fn main() -> anyhow::Result<()> {
                 }
             }
 
+            #[cfg(feature = "device")]
             display.flush().unwrap();
+
+            #[cfg(feature = "host")]
+            window.update(&display);
         }
 
         Ok::<_, anyhow::Error>(())
     };
 
-    let result = tokio::join!(client.run(), event_handling);
-
-    result.0?;
-    result.1?;
+    tokio::select! {
+        _ = client.run() => {},
+        _ = event_handling => {},
+        _ = tokio::signal::ctrl_c() => {
+            tracing::debug!("received SIGINT, exiting ...");
+        },
+    }
 
     Ok(())
 }
