@@ -79,7 +79,8 @@ async fn connect(meater: &platform::Peripheral) -> anyhow::Result<()> {
         match meater.connect().await {
             Ok(_) => break,
             Err(err) => {
-                tracing::error!("unable to connect: {err}, retrying ...");
+                tracing::error!("unable to connect: {err}, retrying in 1s ...");
+                tokio::time::sleep(std::time::Duration::from_secs(1)).await;
             }
         }
     }

@@ -1,11 +1,12 @@
-use anyhow::Context;
+use anyhow::{anyhow, Context};
 use embedded_graphics::geometry::Point;
 use embedded_graphics::image::Image;
 use embedded_graphics::mono_font::MonoTextStyle;
 use embedded_graphics::pixelcolor::BinaryColor;
 use embedded_graphics::text::Text;
 use embedded_graphics::Drawable;
-use profont::PROFONT_24_POINT;
+use futures_concurrency::future::RaceOk;
+use profont::{PROFONT_10_POINT, PROFONT_24_POINT};
 
 mod meater;
 
@@ -13,11 +14,11 @@ mod meater;
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
 
-    let interface = rppal::i2c::I2c::new().context("unable to create I2c")?;
+    let i2c = rppal::i2c::I2c::new().context("unable to create I2c")?;
 
-    let mut display: sh1106::mode::GraphicsMode<_> = sh1106::Builder::new()
+    let mut display: sh1106::mode::GraphicsMode<_> = sh1106::builder::Builder::new()
         .with_size(sh1106::displaysize::DisplaySize::Display128x64)
-        .connect_i2c(interface)
+        .connect_i2c(i2c)
         .into();
 
     let not_found_icon = tinybmp::Bmp::from_slice(include_bytes!("assets/not-found.bmp")).unwrap();
@@ -32,15 +33,20 @@ async fn main() -> anyhow::Result<()> {
     let battery_icon_100 =
         tinybmp::Bmp::from_slice(include_bytes!("assets/battery-100.bmp")).unwrap();
 
-    display.init().unwrap();
-    display.flush().unwrap();
+    display
+        .init()
+        .map_err(|err| anyhow!("failed to init display: {err:?}"))?;
+
     display.clear();
 
-    Image::new(&not_found_icon, Point::new(47, 16)).draw(&mut display)?;
+    Image::new(&not_found_icon, Point::new(47, 16))
+        .draw(&mut display)
+        .unwrap();
 
     display.flush().unwrap();
 
     let temperature_style = MonoTextStyle::new(&PROFONT_24_POINT, BinaryColor::On);
+    let description_style = MonoTextStyle::new(&PROFONT_10_POINT, BinaryColor::On);
     let mut temperature: Option<(f32, f32)> = None;
     let mut battery: Option<u16> = None;
 
@@ -64,15 +70,34 @@ async fn main() -> anyhow::Result<()> {
 
             match state {
                 meater::State::Disconnected => {
-                    Image::new(&not_found_icon, Point::new(47, 16)).draw(&mut display)?;
+                    Image::new(&not_found_icon, Point::new(47, 16))
+                        .draw(&mut display)
+                        .unwrap();
                 }
                 meater::State::Connecting => {
-                    Image::new(&connecting_icon, Point::new(47, 16)).draw(&mut display)?;
+                    Image::new(&connecting_icon, Point::new(47, 16))
+                        .draw(&mut display)
+                        .unwrap();
                 }
                 meater::State::Connected => {
-                    if let Some((tip, _ambient)) = temperature {
-                        Text::new(&format!("{tip:.0}°C"), Point::new(0, 38), temperature_style)
-                            .draw(&mut display)?;
+                    if let Some((tip, ambient)) = temperature {
+                        Text::new(&format!("{tip:.0}"), Point::new(0, 28), temperature_style)
+                            .draw(&mut display)
+                            .unwrap();
+                        Text::new(&format!("tip"), Point::new(34, 27), description_style)
+                            .draw(&mut display)
+                            .unwrap();
+
+                        Text::new(
+                            &format!("{ambient:.0}"),
+                            Point::new(0, 60),
+                            temperature_style,
+                        )
+                        .draw(&mut display)
+                        .unwrap();
+                        Text::new(&format!("ambient"), Point::new(34, 59), description_style)
+                            .draw(&mut display)
+                            .unwrap();
                     }
 
                     if let Some(percent) = battery {
@@ -83,7 +108,9 @@ async fn main() -> anyhow::Result<()> {
                             _ => battery_icon_100,
                         };
 
-                        Image::new(&icon, Point::new(112, 0)).draw(&mut display)?;
+                        Image::new(&icon, Point::new(112, 0))
+                            .draw(&mut display)
+                            .unwrap();
                     }
                 }
             }
