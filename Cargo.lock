@@ -493,6 +493,7 @@ dependencies = [
  "sh1106",
  "tinybmp",
  "tokio",
+ "tokio-util",
  "tracing",
  "tracing-subscriber",
  "uuid",

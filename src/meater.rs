@@ -5,6 +5,7 @@ use btleplug::api::{
 use btleplug::platform;
 use futures::StreamExt;
 use tokio::sync::mpsc;
+use tokio_util::sync::CancellationToken;
 use uuid::uuid;
 
 const SERVICE_UUID: uuid::Uuid = uuid!("a75cc7fc-c956-488f-ac2a-2dbc08b63a04");
@@ -152,12 +153,36 @@ async fn monitor(
         })
         .await?;
 
+    let mut token: Option<CancellationToken> = None;
+
     while let Some(event) = events.next().await {
         match event {
             CentralEvent::DeviceDiscovered(id) => {
                 if let Some(meater) = get_meater(central, &id).await? {
                     tracing::info!(id = ?id, "MEATER discovered");
-                    tokio::spawn(listen(meater.clone(), sender.clone()));
+
+                    if let Some(token) = token.take() {
+                        token.cancel();
+                    }
+
+                    let new_token = CancellationToken::new();
+                    let _ = token.insert(new_token.clone());
+
+                    tokio::spawn({
+                        let meater = meater.clone();
+                        let sender = sender.clone();
+
+                        async move {
+                            tokio::select! {
+                                _ = listen(meater, sender) => {
+                                    tracing::warn!("listener returned");
+                                }
+                                _ = new_token.cancelled() => {
+                                    tracing::info!("cancelled listener");
+                                }
+                            }
+                        }
+                    });
                     sender.send(Event::State(State::Connecting)).await?;
                     connect(&meater).await?;
                 }
