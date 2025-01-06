@@ -46,8 +46,9 @@ async fn main() -> anyhow::Result<()> {
 
     let temperature_style = MonoTextStyle::new(&PROFONT_24_POINT, BinaryColor::On);
     let description_style = MonoTextStyle::new(&PROFONT_9_POINT, BinaryColor::On);
-    let mut temperature: Option<(f32, f32)> = None;
-    let mut battery: Option<u16> = None;
+    let mut tip_temperature = 20.0;
+    let mut ambient_temperature = 20.0;
+    let mut battery_percentage = 100;
 
     let (client, mut receiver) = meater::Client::new();
 
@@ -58,10 +59,11 @@ async fn main() -> anyhow::Result<()> {
             match event {
                 meater::Event::State(new_state) => state = new_state,
                 meater::Event::Temperature { tip, ambient } => {
-                    temperature.replace((tip, ambient));
+                    tip_temperature = tip;
+                    ambient_temperature = ambient;
                 }
                 meater::Event::Battery { percent } => {
-                    battery.replace(percent);
+                    battery_percentage = percent;
                 }
             }
 
@@ -79,38 +81,40 @@ async fn main() -> anyhow::Result<()> {
                         .unwrap();
                 }
                 meater::State::Connected => {
-                    if let Some((tip, ambient)) = temperature {
-                        Text::new(&format!("{tip:.0}"), Point::new(0, 28), temperature_style)
-                            .draw(&mut display)
-                            .unwrap();
-                        Text::new(&format!("tip"), Point::new(34, 27), description_style)
-                            .draw(&mut display)
-                            .unwrap();
+                    Text::new(
+                        &format!("{tip_temperature:.0}"),
+                        Point::new(0, 28),
+                        temperature_style,
+                    )
+                    .draw(&mut display)
+                    .unwrap();
 
-                        Text::new(
-                            &format!("{ambient:.0}"),
-                            Point::new(0, 60),
-                            temperature_style,
-                        )
+                    Text::new(&format!("tip"), Point::new(34, 27), description_style)
                         .draw(&mut display)
                         .unwrap();
-                        Text::new(&format!("ambient"), Point::new(34, 59), description_style)
-                            .draw(&mut display)
-                            .unwrap();
-                    }
 
-                    if let Some(percent) = battery {
-                        let icon = match percent {
-                            ..=25 => battery_icon_25,
-                            26..=50 => battery_icon_50,
-                            51..=75 => battery_icon_75,
-                            _ => battery_icon_100,
-                        };
+                    Text::new(
+                        &format!("{ambient_temperature:.0}"),
+                        Point::new(0, 60),
+                        temperature_style,
+                    )
+                    .draw(&mut display)
+                    .unwrap();
 
-                        Image::new(&icon, Point::new(112, 0))
-                            .draw(&mut display)
-                            .unwrap();
-                    }
+                    Text::new(&format!("ambient"), Point::new(34, 59), description_style)
+                        .draw(&mut display)
+                        .unwrap();
+
+                    let icon = match battery_percentage {
+                        ..=25 => battery_icon_25,
+                        26..=50 => battery_icon_50,
+                        51..=75 => battery_icon_75,
+                        _ => battery_icon_100,
+                    };
+
+                    Image::new(&icon, Point::new(112, 0))
+                        .draw(&mut display)
+                        .unwrap();
                 }
             }
 
