@@ -102,6 +102,7 @@ async fn connect(meater: &platform::Peripheral) -> anyhow::Result<()> {
 
 /// Listen to notifications and send out temperature and battery values.
 async fn listen(meater: platform::Peripheral, sender: mpsc::Sender<Event>) -> anyhow::Result<()> {
+    tracing::info!("listening for MEATER notifications");
     let mut notifications = meater.notifications().await?;
 
     while let Some(ValueNotification { value, uuid }) = notifications.next().await {
@@ -151,16 +152,14 @@ async fn monitor(
         })
         .await?;
 
-    let mut current_listener = None;
-
     while let Some(event) = events.next().await {
         match event {
             CentralEvent::DeviceDiscovered(id) => {
                 if let Some(meater) = get_meater(central, &id).await? {
                     tracing::info!(id = ?id, "MEATER discovered");
+                    tokio::spawn(listen(meater.clone(), sender.clone()));
                     sender.send(Event::State(State::Connecting)).await?;
                     connect(&meater).await?;
-                    current_listener.replace(tokio::spawn(listen(meater, sender.clone())));
                 }
             }
             CentralEvent::DeviceConnected(id) => {
@@ -173,11 +172,6 @@ async fn monitor(
                 if get_meater(central, &id).await?.is_some() {
                     tracing::info!(id = ?id, "MEATER disconnected");
                     sender.send(Event::State(State::Disconnected)).await?;
-
-                    if let Some(listener) = current_listener.take() {
-                        listener.abort();
-                        drop(listener);
-                    }
                 }
             }
             CentralEvent::DeviceUpdated(id) => {
@@ -185,14 +179,13 @@ async fn monitor(
                     tracing::info!(id = ?id, "MEATER updated");
                     sender.send(Event::State(State::Connecting)).await?;
                     connect(&meater).await?;
-                    current_listener.replace(tokio::spawn(listen(meater, sender.clone())));
                 }
             }
             _ => {}
         }
     }
 
-    Err(anyhow!("no meater found"))
+    Err(anyhow!("no MEATER found"))
 }
 
 fn to_u16(msb: u8, lsb: u8) -> u16 {

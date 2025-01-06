@@ -5,7 +5,6 @@ use embedded_graphics::mono_font::MonoTextStyle;
 use embedded_graphics::pixelcolor::BinaryColor;
 use embedded_graphics::text::Text;
 use embedded_graphics::Drawable;
-use futures_concurrency::future::RaceOk;
 use profont::{PROFONT_10_POINT, PROFONT_24_POINT};
 
 mod meater;
