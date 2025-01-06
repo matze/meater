@@ -5,7 +5,7 @@ use embedded_graphics::mono_font::MonoTextStyle;
 use embedded_graphics::pixelcolor::BinaryColor;
 use embedded_graphics::text::Text;
 use embedded_graphics::Drawable;
-use profont::{PROFONT_10_POINT, PROFONT_24_POINT};
+use profont::{PROFONT_24_POINT, PROFONT_9_POINT};
 
 mod meater;
 
@@ -45,7 +45,7 @@ async fn main() -> anyhow::Result<()> {
     display.flush().unwrap();
 
     let temperature_style = MonoTextStyle::new(&PROFONT_24_POINT, BinaryColor::On);
-    let description_style = MonoTextStyle::new(&PROFONT_10_POINT, BinaryColor::On);
+    let description_style = MonoTextStyle::new(&PROFONT_9_POINT, BinaryColor::On);
     let mut temperature: Option<(f32, f32)> = None;
     let mut battery: Option<u16> = None;
 
