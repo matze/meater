@@ -20,10 +20,11 @@ struct MeaterState {
     percentage: u16,
 }
 
-/// Consolidate events
+/// Consolidate events.
 enum Event {
-    Disconnected,
-    Connecting,
+    /// Show centered icon.
+    Icon(tinybmp::Bmp<'static, BinaryColor>),
+    /// Show state update.
     Update(MeaterState),
 }
 
@@ -49,11 +50,13 @@ fn process_events(receiver: mpsc::Receiver<meater::Event>) -> impl Stream<Item =
                 match event {
                     meater::Event::State(state) => match state {
                         meater::State::Disconnected => {
-                            break Some((Event::Disconnected, stream_state))
+                            break Some((Event::Icon(icons::DISCONNECTED), stream_state))
                         }
-                        meater::State::Connecting => break Some((Event::Connecting, stream_state)),
+                        meater::State::Connecting => {
+                            break Some((Event::Icon(icons::CONNECTING), stream_state))
+                        }
                         meater::State::Connected => {
-                            // TODO: send out an event that causes a different icon to be shown
+                            break Some((Event::Icon(icons::CONNECTED), stream_state))
                         }
                     },
                     meater::Event::Temperature { tip, ambient } => {
@@ -90,7 +93,7 @@ async fn main() -> anyhow::Result<()> {
 
     display.clear();
 
-    Image::new(&icons::NOT_FOUND, Point::new(47, 16))
+    Image::new(&icons::DISCONNECTED, Point::new(47, 16))
         .draw(&mut display)
         .unwrap();
 
@@ -108,13 +111,8 @@ async fn main() -> anyhow::Result<()> {
             display.clear();
 
             match event {
-                Event::Disconnected => {
-                    Image::new(&icons::NOT_FOUND, Point::new(47, 16))
-                        .draw(&mut display)
-                        .unwrap();
-                }
-                Event::Connecting => {
-                    Image::new(&icons::CONNECTING, Point::new(47, 16))
+                Event::Icon(icon) => {
+                    Image::new(&icon, Point::new(47, 16))
                         .draw(&mut display)
                         .unwrap();
                 }
