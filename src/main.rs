@@ -9,6 +9,7 @@ use futures::{stream, Stream, StreamExt};
 use profont::{PROFONT_24_POINT, PROFONT_9_POINT};
 use tokio::sync::mpsc;
 
+mod icons;
 mod meater;
 
 /// Consolidated MEATER state
@@ -83,25 +84,13 @@ async fn main() -> anyhow::Result<()> {
         .connect_i2c(i2c)
         .into();
 
-    let not_found_icon = tinybmp::Bmp::from_slice(include_bytes!("assets/not-found.bmp")).unwrap();
-    let connecting_icon =
-        tinybmp::Bmp::from_slice(include_bytes!("assets/connecting.bmp")).unwrap();
-    let battery_icon_25 =
-        tinybmp::Bmp::from_slice(include_bytes!("assets/battery-25.bmp")).unwrap();
-    let battery_icon_50 =
-        tinybmp::Bmp::from_slice(include_bytes!("assets/battery-50.bmp")).unwrap();
-    let battery_icon_75 =
-        tinybmp::Bmp::from_slice(include_bytes!("assets/battery-75.bmp")).unwrap();
-    let battery_icon_100 =
-        tinybmp::Bmp::from_slice(include_bytes!("assets/battery-100.bmp")).unwrap();
-
     display
         .init()
         .map_err(|err| anyhow!("failed to init display: {err:?}"))?;
 
     display.clear();
 
-    Image::new(&not_found_icon, Point::new(47, 16))
+    Image::new(&icons::NOT_FOUND, Point::new(47, 16))
         .draw(&mut display)
         .unwrap();
 
@@ -120,12 +109,12 @@ async fn main() -> anyhow::Result<()> {
 
             match event {
                 Event::Disconnected => {
-                    Image::new(&not_found_icon, Point::new(47, 16))
+                    Image::new(&icons::NOT_FOUND, Point::new(47, 16))
                         .draw(&mut display)
                         .unwrap();
                 }
                 Event::Connecting => {
-                    Image::new(&connecting_icon, Point::new(47, 16))
+                    Image::new(&icons::CONNECTING, Point::new(47, 16))
                         .draw(&mut display)
                         .unwrap();
                 }
@@ -155,10 +144,10 @@ async fn main() -> anyhow::Result<()> {
                         .unwrap();
 
                     let icon = match percentage {
-                        ..=25 => battery_icon_25,
-                        26..=50 => battery_icon_50,
-                        51..=75 => battery_icon_75,
-                        _ => battery_icon_100,
+                        ..=25 => icons::BATTERY_25,
+                        26..=50 => icons::BATTERY_50,
+                        51..=75 => icons::BATTERY_75,
+                        _ => icons::BATTERY_100,
                     };
 
                     Image::new(&icon, Point::new(112, 0))

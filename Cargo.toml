@@ -12,7 +12,7 @@ futures = "0.3.29"
 profont = "0.7.0"
 rppal = { version = "0.22.1", features = ["hal"] }
 sh1106 = "0.5.0"
-tinybmp = "0.6.0"
+tinybmp = { git = "https://github.com/embedded-graphics/tinybmp" }
 tokio = { version = "1.34.0", features = ["rt", "macros"] }
 tokio-util = "0.7.13"
 tracing = "0.1.40"
