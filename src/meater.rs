@@ -16,7 +16,6 @@ const TEMPERATURE_UUID: uuid::Uuid = uuid!("7edda774-045e-4bbf-909b-45d1991a2876
 pub enum State {
     Disconnected,
     Connecting,
-    Connected,
 }
 
 /// An event emitted by the MEATER client.
@@ -185,12 +184,6 @@ async fn monitor(
                     });
                     sender.send(Event::State(State::Connecting)).await?;
                     connect(&meater).await?;
-                }
-            }
-            CentralEvent::DeviceConnected(id) => {
-                if get_meater(central, &id).await?.is_some() {
-                    tracing::info!(id = ?id, "MEATER connected");
-                    sender.send(Event::State(State::Connected)).await?;
                 }
             }
             CentralEvent::DeviceDisconnected(id) => {

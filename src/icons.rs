@@ -12,12 +12,6 @@ pub const CONNECTING: tinybmp::Bmp<BinaryColor> =
         Err(_) => panic!("failed to load image"),
     };
 
-pub const CONNECTED: tinybmp::Bmp<BinaryColor> =
-    match tinybmp::Bmp::from_slice(include_bytes!("assets/connected.bmp")) {
-        Ok(image) => image,
-        Err(_) => panic!("failed to load image"),
-    };
-
 pub const BATTERY_25: tinybmp::Bmp<BinaryColor> =
     match tinybmp::Bmp::from_slice(include_bytes!("assets/battery-25.bmp")) {
         Ok(image) => image,

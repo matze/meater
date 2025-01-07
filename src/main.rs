@@ -55,9 +55,6 @@ fn process_events(receiver: mpsc::Receiver<meater::Event>) -> impl Stream<Item =
                         meater::State::Connecting => {
                             break Some((Event::Icon(icons::CONNECTING), stream_state))
                         }
-                        meater::State::Connected => {
-                            break Some((Event::Icon(icons::CONNECTED), stream_state))
-                        }
                     },
                     meater::Event::Temperature { tip, ambient } => {
                         stream_state.state.tip = tip;
