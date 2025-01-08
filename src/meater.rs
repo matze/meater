@@ -28,6 +28,36 @@ pub enum Event {
     Battery { percent: u16 },
 }
 
+impl TryFrom<ValueNotification> for Event {
+    type Error = anyhow::Error;
+
+    fn try_from(ValueNotification { value, uuid }: ValueNotification) -> Result<Self, Self::Error> {
+        match uuid {
+            TEMPERATURE_UUID => {
+                if value.len() != 8 {
+                    return Err(anyhow!(
+                        "temperature does not contain correct number of bytes"
+                    ));
+                }
+
+                let tip = to_u16(value[1], value[0]);
+                let ra = to_u16(value[3], value[2]);
+                let oa = to_u16(value[5], value[4]);
+                let ambient = tip + 0.max(((ra - 48.min(oa)) * 16 * 589) / 1487);
+
+                Ok(Event::Temperature {
+                    tip: to_degree_celsius(tip),
+                    ambient: to_degree_celsius(ambient),
+                })
+            }
+            BATTERY_UUID => Ok(Event::Battery {
+                percent: to_u16(value[1], value[0]) * 10,
+            }),
+            _ => Err(anyhow!("unknown notification UUID")),
+        }
+    }
+}
+
 pub struct Client(mpsc::Sender<Event>);
 
 impl Client {
@@ -105,33 +135,9 @@ async fn listen(meater: platform::Peripheral, sender: mpsc::Sender<Event>) -> an
     tracing::info!("listening for MEATER notifications");
     let mut notifications = meater.notifications().await?;
 
-    while let Some(ValueNotification { value, uuid }) = notifications.next().await {
-        tracing::info!(uuid = ?uuid, value = ?value, "received notification value");
-
-        if uuid == TEMPERATURE_UUID {
-            if value.len() != 8 {
-                tracing::warn!("temperature does not contain correct number of bytes");
-                continue;
-            }
-
-            let tip = to_u16(value[1], value[0]);
-            let ra = to_u16(value[3], value[2]);
-            let oa = to_u16(value[5], value[4]);
-            let ambient = tip + 0.max(((ra - 48.min(oa)) * 16 * 589) / 1487);
-
-            sender
-                .send(Event::Temperature {
-                    tip: to_degree_celsius(tip),
-                    ambient: to_degree_celsius(ambient),
-                })
-                .await?;
-        } else if uuid == BATTERY_UUID {
-            sender
-                .send(Event::Battery {
-                    percent: to_u16(value[1], value[0]) * 10,
-                })
-                .await?;
-        }
+    while let Some(notification) = notifications.next().await {
+        tracing::info!(?notification, "received");
+        sender.send(notification.try_into()?).await?;
     }
 
     Ok(())
