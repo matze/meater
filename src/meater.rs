@@ -23,8 +23,10 @@ pub enum Event {
     /// State changed.
     State(State),
     /// Temperature changed.
+    #[expect(dead_code)]
     Temperature { tip: f32, ambient: f32 },
     /// Battery level changed.
+    #[expect(dead_code)]
     Battery { percent: u16 },
 }
 
