@@ -9,7 +9,6 @@ btleplug = "0.11.3"
 dbus = { version = "0.9.7", features = ["vendored"] }
 embedded-graphics = "0.8.1"
 futures = "0.3.29"
-profont = "0.7.0"
 rppal = { version = "0.22.1", features = ["hal"] }
 sh1106 = "0.5.0"
 tinybmp = { git = "https://github.com/embedded-graphics/tinybmp" }

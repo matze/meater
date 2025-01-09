@@ -12,26 +12,8 @@ pub const CONNECTING: tinybmp::Bmp<BinaryColor> =
         Err(_) => panic!("failed to load image"),
     };
 
-pub const BATTERY_25: tinybmp::Bmp<BinaryColor> =
-    match tinybmp::Bmp::from_slice(include_bytes!("assets/battery-25.bmp")) {
-        Ok(image) => image,
-        Err(_) => panic!("failed to load image"),
-    };
-
-pub const BATTERY_50: tinybmp::Bmp<BinaryColor> =
-    match tinybmp::Bmp::from_slice(include_bytes!("assets/battery-50.bmp")) {
-        Ok(image) => image,
-        Err(_) => panic!("failed to load image"),
-    };
-
-pub const BATTERY_75: tinybmp::Bmp<BinaryColor> =
-    match tinybmp::Bmp::from_slice(include_bytes!("assets/battery-75.bmp")) {
-        Ok(image) => image,
-        Err(_) => panic!("failed to load image"),
-    };
-
-pub const BATTERY_100: tinybmp::Bmp<BinaryColor> =
-    match tinybmp::Bmp::from_slice(include_bytes!("assets/battery-100.bmp")) {
+pub const FONT: tinybmp::Bmp<BinaryColor> =
+    match tinybmp::Bmp::from_slice(include_bytes!("assets/font.bmp")) {
         Ok(image) => image,
         Err(_) => panic!("failed to load image"),
     };
