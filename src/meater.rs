@@ -43,7 +43,7 @@ impl TryFrom<ValueNotification> for Event {
                 let tip = to_u16(value[1], value[0]);
                 let ra = to_u16(value[3], value[2]);
                 let oa = to_u16(value[5], value[4]);
-                let ambient = tip + 0.max(((ra - 48.min(oa)) * 16 * 589) / 1487);
+                let ambient = tip + ((ra - 48.min(oa)) * 16 * 589) / 1487;
 
                 Ok(Event::Temperature {
                     tip: to_degree_celsius(tip),
