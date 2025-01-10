@@ -78,8 +78,7 @@ fn draw_number<T: sh1106::interface::DisplayInterface>(
     Image::new(n1, Point::new(x, 0)).draw(display).unwrap();
     x += n1.size().width as i32;
     Image::new(n2, Point::new(x, 0)).draw(display).unwrap();
-    // We shift the period back a bit for tighter looks.
-    x += n2.size().width as i32 - 2;
+    x += n2.size().width as i32;
     Image::new(period, Point::new(x, 0)).draw(display).unwrap();
     x += period.size().width as i32;
     Image::new(n3, Point::new(x, 0)).draw(display).unwrap();
